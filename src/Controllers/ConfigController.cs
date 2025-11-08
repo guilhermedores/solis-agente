@@ -24,7 +24,7 @@ public class ConfigController : ControllerBase
     /// <summary>
     /// Configura o agente com token JWT gerado pela API Solis
     /// </summary>
-    /// <param name="request">Token JWT e URL da API</param>
+    /// <param name="request">Token JWT</param>
     /// <returns>Status da configuração</returns>
     [HttpPost("setup")]
     public async Task<IActionResult> ConfigurarToken([FromBody] SetupRequest request)
@@ -36,21 +36,11 @@ public class ConfigController : ControllerBase
                 return BadRequest(new { error = "Token é obrigatório" });
             }
 
-            if (string.IsNullOrWhiteSpace(request.ApiBaseUrl))
-            {
-                return BadRequest(new { error = "URL da API é obrigatória" });
-            }
-
-            // Valida formato da URL
-            if (!Uri.TryCreate(request.ApiBaseUrl, UriKind.Absolute, out _))
-            {
-                return BadRequest(new { error = "URL da API inválida" });
-            }
-
             _logger.LogInformation("[ConfigController] Configurando token do agente...");
 
             // Salva token no banco (decodifica e extrai informações)
-            await _configuracaoService.SalvarTokenAsync(request.Token, request.ApiBaseUrl);
+            // A URL base da API é obtida do appsettings.json
+            await _configuracaoService.SalvarTokenAsync(request.Token);
 
             // Obtém status após salvar
             var status = await _configuracaoService.ObterStatusConfiguracaoAsync();
@@ -67,7 +57,8 @@ public class ConfigController : ControllerBase
                 tenantId = status.TenantId,
                 nomeAgente = status.NomeAgente,
                 tokenValidoAte = status.TokenValidoAte,
-                apiBaseUrl = status.ApiBaseUrl
+                apiBaseUrl = status.ApiBaseUrl,
+                empresaId = status.EmpresaId
             });
         }
         catch (Exception ex)
@@ -101,7 +92,8 @@ public class ConfigController : ControllerBase
                 tenantId = status.TenantId,
                 nomeAgente = status.NomeAgente,
                 tokenValidoAte = status.TokenValidoAte,
-                apiBaseUrl = status.ApiBaseUrl
+                apiBaseUrl = status.ApiBaseUrl,
+                empresaId = status.EmpresaId
             });
         }
         catch (Exception ex)
@@ -157,9 +149,4 @@ public class SetupRequest
     /// Token JWT gerado pela API Solis
     /// </summary>
     public string Token { get; set; } = string.Empty;
-
-    /// <summary>
-    /// URL base da API Solis (exemplo: http://localhost:3000)
-    /// </summary>
-    public string ApiBaseUrl { get; set; } = string.Empty;
 }

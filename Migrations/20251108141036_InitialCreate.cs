@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Solis.AgentePDV.Migrations
 {
     /// <inheritdoc />
-    public partial class AddTokenFieldsToConfiguracao : Migration
+    public partial class InitialCreate : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -52,9 +52,9 @@ namespace Solis.AgentePDV.Migrations
                     Valor = table.Column<string>(type: "TEXT", nullable: false),
                     Token = table.Column<string>(type: "TEXT", nullable: true),
                     TenantId = table.Column<string>(type: "TEXT", nullable: true),
-                    TokenValidoAte = table.Column<DateTime>(type: "TEXT", nullable: true),
-                    ApiBaseUrl = table.Column<string>(type: "TEXT", nullable: true),
+                    TokenValidoAte = table.Column<DateTime>(type: "TEXT", nullable: true),                    
                     NomeAgente = table.Column<string>(type: "TEXT", nullable: true),
+                    EmpresaId = table.Column<string>(type: "TEXT", nullable: true),
                     CriadoEm = table.Column<DateTime>(type: "TEXT", nullable: false),
                     AtualizadoEm = table.Column<DateTime>(type: "TEXT", nullable: false)
                 },

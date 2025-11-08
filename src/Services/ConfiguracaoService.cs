@@ -12,7 +12,7 @@ namespace Solis.AgentePDV.Services;
 public interface IConfiguracaoService
 {
     Task<Configuracao?> ObterConfiguracaoAsync();
-    Task SalvarTokenAsync(string token, string apiBaseUrl);
+    Task SalvarTokenAsync(string token);
     Task<bool> TemTokenValidoAsync();
     string? ObterToken();
     string? ObterTenantId();
@@ -23,14 +23,16 @@ public class ConfiguracaoService : IConfiguracaoService
 {
     private readonly LocalDbContext _context;
     private readonly ILogger<ConfiguracaoService> _logger;
+    private readonly IConfiguration _configuration;
     private Configuracao? _configuracaoCache;
     private DateTime _cacheExpiracao = DateTime.MinValue;
     private readonly TimeSpan _cacheDuracao = TimeSpan.FromMinutes(5);
 
-    public ConfiguracaoService(LocalDbContext context, ILogger<ConfiguracaoService> logger)
+    public ConfiguracaoService(LocalDbContext context, ILogger<ConfiguracaoService> logger, IConfiguration configuration)
     {
         _context = context;
         _logger = logger;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -60,23 +62,35 @@ public class ConfiguracaoService : IConfiguracaoService
     /// <summary>
     /// Salva o token JWT no banco de dados
     /// Decodifica o token para extrair tenant, nome do agente e data de expiração
+    /// A URL base da API é obtida do IConfiguration (SolisApi:BaseUrl)
     /// </summary>
-    public async Task SalvarTokenAsync(string token, string apiBaseUrl)
+    public async Task SalvarTokenAsync(string token)
     {
         try
         {
+            // Obtém a URL base da API do IConfiguration
+            var apiBaseUrl = _configuration["SolisApi:BaseUrl"];
+
+            Console.WriteLine("API Base URL: " + apiBaseUrl);
+            
+            if (string.IsNullOrEmpty(apiBaseUrl))
+            {
+                throw new InvalidOperationException("URL base da API não configurada em appsettings.json (SolisApi:BaseUrl)");
+            }
+
             // Decodifica o token JWT (sem validar assinatura, apenas para extrair claims)
             var handler = new JwtSecurityTokenHandler();
             var jwtToken = handler.ReadJwtToken(token);
 
             // Extrai informações do token
-            var tenantId = jwtToken.Claims.FirstOrDefault(c => c.Type == "tenant")?.Value;
+            var tenantId = jwtToken.Claims.FirstOrDefault(c => c.Type == "tenantId")?.Value;
             var agentName = jwtToken.Claims.FirstOrDefault(c => c.Type == "agentName")?.Value;
+            var empresaId = jwtToken.Claims.FirstOrDefault(c => c.Type == "empresaId")?.Value;
             var expirationUnix = jwtToken.Claims.FirstOrDefault(c => c.Type == "exp")?.Value;
 
             if (string.IsNullOrEmpty(tenantId))
             {
-                throw new InvalidOperationException("Token JWT não contém claim 'tenant'");
+                throw new InvalidOperationException("Token JWT não contém claim 'tenantId'");
             }
 
             // Converte timestamp Unix para DateTime
@@ -101,8 +115,8 @@ public class ConfiguracaoService : IConfiguracaoService
                     Token = token,
                     TenantId = tenantId,
                     TokenValidoAte = validoAte,
-                    ApiBaseUrl = apiBaseUrl,
                     NomeAgente = agentName ?? "Agente PDV",
+                    EmpresaId = empresaId,
                     CriadoEm = DateTime.UtcNow,
                     AtualizadoEm = DateTime.UtcNow
                 };
@@ -114,8 +128,8 @@ public class ConfiguracaoService : IConfiguracaoService
                 config.Token = token;
                 config.TenantId = tenantId;
                 config.TokenValidoAte = validoAte;
-                config.ApiBaseUrl = apiBaseUrl;
                 config.NomeAgente = agentName ?? config.NomeAgente ?? "Agente PDV";
+                config.EmpresaId = empresaId;
                 config.AtualizadoEm = DateTime.UtcNow;
             }
 
@@ -125,9 +139,10 @@ public class ConfiguracaoService : IConfiguracaoService
             _configuracaoCache = null;
 
             _logger.LogInformation(
-                "[ConfiguracaoService] Token salvo com sucesso. Tenant: {TenantId}, Valido até: {ValidoAte}",
+                "[ConfiguracaoService] Token salvo com sucesso. Tenant: {TenantId}, Valido até: {ValidoAte}, API: {ApiBaseUrl}",
                 tenantId,
-                validoAte?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A"
+                validoAte?.ToString("yyyy-MM-dd HH:mm:ss") ?? "N/A",
+                apiBaseUrl
             );
         }
         catch (Exception ex)
@@ -231,7 +246,7 @@ public class ConfiguracaoService : IConfiguracaoService
                 TenantId = config.TenantId,
                 NomeAgente = config.NomeAgente,
                 TokenValidoAte = config.TokenValidoAte,
-                ApiBaseUrl = config.ApiBaseUrl
+                EmpresaId = config.EmpresaId
             };
         }
 
@@ -243,7 +258,7 @@ public class ConfiguracaoService : IConfiguracaoService
             TenantId = config.TenantId,
             NomeAgente = config.NomeAgente,
             TokenValidoAte = config.TokenValidoAte,
-            ApiBaseUrl = config.ApiBaseUrl
+            EmpresaId = config.EmpresaId
         };
     }
 }
@@ -260,4 +275,5 @@ public class ConfiguracaoStatus
     public string? NomeAgente { get; set; }
     public DateTime? TokenValidoAte { get; set; }
     public string? ApiBaseUrl { get; set; }
+    public string? EmpresaId { get; set; }
 }

@@ -11,8 +11,8 @@ using Solis.AgentePDV.Data;
 namespace Solis.AgentePDV.Migrations
 {
     [DbContext(typeof(LocalDbContext))]
-    [Migration("20251105172750_AddTokenFieldsToConfiguracao")]
-    partial class AddTokenFieldsToConfiguracao
+    [Migration("20251108141036_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -112,9 +112,6 @@ namespace Solis.AgentePDV.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ApiBaseUrl")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("AtualizadoEm")
                         .HasColumnType("TEXT");
 
@@ -123,6 +120,9 @@ namespace Solis.AgentePDV.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EmpresaId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NomeAgente")

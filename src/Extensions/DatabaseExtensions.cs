@@ -1,5 +1,6 @@
 using Solis.AgentePDV.Data;
 using Serilog;
+using Microsoft.EntityFrameworkCore;
 
 namespace Solis.AgentePDV.Extensions;
 
@@ -34,19 +35,27 @@ public static class DatabaseExtensions
                 EnsureDirectoryExists(dbPath);
             }
             
-            // Criar/atualizar schema do banco de dados
-            var created = localDb.Database.EnsureCreated();
+            // Criar/atualizar schema do banco de dados usando migrations
+            var pendingMigrations = localDb.Database.GetPendingMigrations().ToList();
             
-            if (created)
+            if (pendingMigrations.Any())
             {
-                Log.Information("Banco de dados local criado com sucesso com todas as tabelas");
+                Log.Information("Aplicando {Count} migrations pendentes: {Migrations}", 
+                    pendingMigrations.Count, 
+                    string.Join(", ", pendingMigrations));
+                    
+                localDb.Database.Migrate();
+                Log.Information("Migrations aplicadas com sucesso");
                 
-                // Seed de dados iniciais
-                SeedInitialData(localDb);
+                // Seed de dados iniciais apenas se foi a primeira migration
+                if (!localDb.Configuracoes.Any())
+                {
+                    SeedInitialData(localDb);
+                }
             }
             else
             {
-                Log.Information("Banco de dados local já existia, schema validado");
+                Log.Information("Banco de dados local atualizado, nenhuma migration pendente");
             }
             
             // Log informações do banco

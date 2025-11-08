@@ -47,13 +47,8 @@ try
     builder.Services.AddSwaggerGen();
 
     // Configurar banco de dados local (SQLite)
-    // Em desenvolvimento, usar diretório local; em produção, usar ProgramData
-    var defaultDbPath = builder.Environment.IsDevelopment() 
-        ? Path.Combine(builder.Environment.ContentRootPath, "agente-pdv.db")
-        : "C:\\ProgramData\\Solis\\data\\agente-pdv.db";
-    
     var sqliteConnection = builder.Configuration.GetConnectionString("LocalDb") 
-        ?? $"Data Source={defaultDbPath}";
+        ?? "Data Source=C:\\ProgramData\\Solis\\data\\agente-pdv.db";
     
     // Usar apenas DbContext normal (Scoped)
     builder.Services.AddDbContext<LocalDbContext>(options =>
@@ -106,11 +101,15 @@ try
     });
 
     app.UseCors("AllowPWA");
-    
+  
     // Não usar HTTPS redirect em localhost
     // app.UseHttpsRedirection();
 
-    app.UseAuthorization();
+    // Servir arquivos estáticos (HTML, CSS, JS)
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+
+  app.UseAuthorization();
 
     app.MapControllers();
 

@@ -109,9 +109,6 @@ namespace Solis.AgentePDV.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("ApiBaseUrl")
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("AtualizadoEm")
                         .HasColumnType("TEXT");
 
@@ -120,6 +117,9 @@ namespace Solis.AgentePDV.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CriadoEm")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EmpresaId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("NomeAgente")

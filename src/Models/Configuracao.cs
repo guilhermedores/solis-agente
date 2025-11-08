@@ -31,15 +31,16 @@ public class Configuracao
     public DateTime? TokenValidoAte { get; set; }
     
     /// <summary>
-    /// URL base da API Solis (exemplo: http://localhost:3000)
-    /// </summary>
-    public string? ApiBaseUrl { get; set; }
-    
-    /// <summary>
     /// Nome do agente/PDV (exemplo: "PDV Loja Centro")
     /// Extraído do token JWT durante configuração inicial
     /// </summary>
     public string? NomeAgente { get; set; }
+    
+    /// <summary>
+    /// ID da empresa vinculada ao agente
+    /// Extraído do token JWT durante configuração inicial
+    /// </summary>
+    public string? EmpresaId { get; set; }
     
     public DateTime CriadoEm { get; set; }
     public DateTime AtualizadoEm { get; set; }
