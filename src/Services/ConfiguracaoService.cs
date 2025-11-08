@@ -16,6 +16,7 @@ public interface IConfiguracaoService
     Task<bool> TemTokenValidoAsync();
     string? ObterToken();
     string? ObterTenantId();
+    string? ObterEmpresaId();
     Task<ConfiguracaoStatus> ObterStatusConfiguracaoAsync();
 }
 
@@ -83,6 +84,7 @@ public class ConfiguracaoService : IConfiguracaoService
             var jwtToken = handler.ReadJwtToken(token);
 
             // Extrai informações do token
+            var tenant = jwtToken.Claims.FirstOrDefault(c => c.Type == "tenant")?.Value;
             var tenantId = jwtToken.Claims.FirstOrDefault(c => c.Type == "tenantId")?.Value;
             var agentName = jwtToken.Claims.FirstOrDefault(c => c.Type == "agentName")?.Value;
             var empresaId = jwtToken.Claims.FirstOrDefault(c => c.Type == "empresaId")?.Value;
@@ -114,6 +116,7 @@ public class ConfiguracaoService : IConfiguracaoService
                     Valor = "Configuracao inicial do agente",
                     Token = token,
                     TenantId = tenantId,
+                    Tenant = tenant,
                     TokenValidoAte = validoAte,
                     NomeAgente = agentName ?? "Agente PDV",
                     EmpresaId = empresaId,
@@ -127,6 +130,7 @@ public class ConfiguracaoService : IConfiguracaoService
                 // Atualiza configuração existente
                 config.Token = token;
                 config.TenantId = tenantId;
+                config.Tenant = tenant;
                 config.TokenValidoAte = validoAte;
                 config.NomeAgente = agentName ?? config.NomeAgente ?? "Agente PDV";
                 config.EmpresaId = empresaId;
@@ -217,6 +221,23 @@ public class ConfiguracaoService : IConfiguracaoService
         return config?.TenantId;
     }
 
+    public string? ObterEmpresaId()
+    {
+        // Tenta obter do cache primeiro
+        if (_configuracaoCache != null && DateTime.UtcNow < _cacheExpiracao)
+        {
+            return _configuracaoCache.EmpresaId;
+        }
+
+        // Busca síncrona do banco (use com cuidado)
+        var config = _context.Configuracoes
+            .Where(c => !string.IsNullOrEmpty(c.EmpresaId))
+            .OrderByDescending(c => c.AtualizadoEm)
+            .FirstOrDefault();
+
+        return config?.EmpresaId;
+    }
+
     /// <summary>
     /// Obtém o status completo da configuração do agente
     /// </summary>
@@ -244,6 +265,7 @@ public class ConfiguracaoService : IConfiguracaoService
                 TokenValido = false,
                 Mensagem = "Token expirado ou inválido. É necessário gerar um novo token.",
                 TenantId = config.TenantId,
+                Tenant = config.Tenant,
                 NomeAgente = config.NomeAgente,
                 TokenValidoAte = config.TokenValidoAte,
                 EmpresaId = config.EmpresaId
@@ -256,6 +278,7 @@ public class ConfiguracaoService : IConfiguracaoService
             TokenValido = true,
             Mensagem = "Agente configurado e conectado com sucesso.",
             TenantId = config.TenantId,
+            Tenant = config.Tenant,
             NomeAgente = config.NomeAgente,
             TokenValidoAte = config.TokenValidoAte,
             EmpresaId = config.EmpresaId
@@ -271,6 +294,7 @@ public class ConfiguracaoStatus
     public bool Configurado { get; set; }
     public bool TokenValido { get; set; }
     public string Mensagem { get; set; } = string.Empty;
+    public string? Tenant { get; set; }
     public string? TenantId { get; set; }
     public string? NomeAgente { get; set; }
     public DateTime? TokenValidoAte { get; set; }

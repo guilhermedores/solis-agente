@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Solis.AgentePDV.Data;
 using Solis.AgentePDV.Models;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace Solis.AgentePDV.Services;
@@ -12,7 +13,7 @@ public class EmpresaService
 {
     private readonly LocalDbContext _context;
     private readonly IConfiguracaoService _configuracaoService;
-    private readonly HttpClient _httpClient;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<EmpresaService> _logger;
 
     public EmpresaService(
@@ -23,7 +24,7 @@ public class EmpresaService
     {
         _context = context;
         _configuracaoService = configuracaoService;
-        _httpClient = httpClientFactory.CreateClient("SolisApi");
+        _httpClientFactory = httpClientFactory;
         _logger = logger;
     }
 
@@ -45,80 +46,89 @@ public class EmpresaService
                 };
             }
 
-            // Fazer requisição para API (GET /api/empresas)
-            var response = await _httpClient.GetAsync("/api/empresas?ativo=true");
-            response.EnsureSuccessStatusCode();
-
-            var result = await response.Content.ReadFromJsonAsync<SyncEmpresasResponse>();
-            
-            if (result == null || result.Empresas == null)
+            var empresaId = _configuracaoService.ObterEmpresaId();
+            if (string.IsNullOrEmpty(empresaId))
             {
-                throw new Exception("Falha ao sincronizar empresas");
+                _logger.LogWarning("Agente não configurado. Não é possível sincronizar empresas.");
+                return new SyncEmpresasResult
+                {
+                    Sucesso = false,
+                    Mensagem = "Agente não configurado"
+                };
             }
 
-            // Processar empresas recebidas
+            var client = _httpClientFactory.CreateClient("SolisApi");
+            var response = await client.GetAsync($"/api/empresas/{empresaId}");
+            response.EnsureSuccessStatusCode();                
+
+            var result = await response.Content.ReadFromJsonAsync<EmpresaDto>();
+
+            if (result == null)
+            {
+                throw new Exception("Falha ao sincronizar empresa");
+            }
+
+            var empresaDto = result;
+
+            // Processar empresa recebida
             var total = 0;
             var novos = 0;
             var atualizados = 0;
 
-            foreach (var empresaDto in result.Empresas)
+            
+            var empresaExistente = await _context.Empresas
+                .FirstOrDefaultAsync(e => e.Id == Guid.Parse(empresaDto.Id));
+
+            if (empresaExistente == null)
             {
-                var empresaExistente = await _context.Empresas
-                    .FirstOrDefaultAsync(e => e.Id == Guid.Parse(empresaDto.Id));
-
-                if (empresaExistente == null)
+                // Nova empresa
+                var novaEmpresa = new Empresa
                 {
-                    // Nova empresa
-                    var novaEmpresa = new Empresa
-                    {
-                        Id = Guid.Parse(empresaDto.Id),
-                        RazaoSocial = empresaDto.RazaoSocial,
-                        NomeFantasia = empresaDto.NomeFantasia,
-                        CNPJ = LimparCnpj(empresaDto.Cnpj),
-                        InscricaoEstadual = empresaDto.InscricaoEstadual,
-                        InscricaoMunicipal = empresaDto.InscricaoMunicipal,
-                        Logradouro = empresaDto.Logradouro,
-                        Numero = empresaDto.Numero,
-                        Complemento = empresaDto.Complemento,
-                        Bairro = empresaDto.Bairro,
-                        Cidade = empresaDto.Cidade,
-                        UF = empresaDto.Uf,
-                        CEP = LimparCep(empresaDto.Cep),
-                        Telefone = empresaDto.Telefone,
-                        Email = empresaDto.Email,
-                        RegimeTributarioId = MapearRegimeTributario(empresaDto.RegimeTributario),
-                        Ativo = true,
-                        SincronizadoEm = DateTime.Now
-                    };
+                    Id = Guid.Parse(empresaDto.Id),
+                    RazaoSocial = empresaDto.RazaoSocial,
+                    NomeFantasia = empresaDto.NomeFantasia,
+                    CNPJ = LimparCnpj(empresaDto.Cnpj),
+                    InscricaoEstadual = empresaDto.InscricaoEstadual,
+                    InscricaoMunicipal = empresaDto.InscricaoMunicipal,
+                    Logradouro = empresaDto.Logradouro,
+                    Numero = empresaDto.Numero,
+                    Complemento = empresaDto.Complemento,
+                    Bairro = empresaDto.Bairro,
+                    Cidade = empresaDto.Cidade,
+                    UF = empresaDto.Uf,
+                    CEP = LimparCep(empresaDto.Cep),
+                    Telefone = empresaDto.Telefone,
+                    Email = empresaDto.Email,
+                    RegimeTributarioId = MapearRegimeTributario(empresaDto.RegimeTributario),
+                    Ativo = true,
+                    SincronizadoEm = DateTime.Now
+                };
 
-                    _context.Empresas.Add(novaEmpresa);
-                    novos++;
-                }
-                else
-                {
-                    // Atualizar empresa existente
-                    empresaExistente.RazaoSocial = empresaDto.RazaoSocial;
-                    empresaExistente.NomeFantasia = empresaDto.NomeFantasia;
-                    empresaExistente.CNPJ = LimparCnpj(empresaDto.Cnpj);
-                    empresaExistente.InscricaoEstadual = empresaDto.InscricaoEstadual;
-                    empresaExistente.InscricaoMunicipal = empresaDto.InscricaoMunicipal;
-                    empresaExistente.Logradouro = empresaDto.Logradouro;
-                    empresaExistente.Numero = empresaDto.Numero;
-                    empresaExistente.Complemento = empresaDto.Complemento;
-                    empresaExistente.Bairro = empresaDto.Bairro;
-                    empresaExistente.Cidade = empresaDto.Cidade;
-                    empresaExistente.UF = empresaDto.Uf;
-                    empresaExistente.CEP = LimparCep(empresaDto.Cep);
-                    empresaExistente.Telefone = empresaDto.Telefone;
-                    empresaExistente.Email = empresaDto.Email;
-                    empresaExistente.RegimeTributarioId = MapearRegimeTributario(empresaDto.RegimeTributario);
-                    empresaExistente.AtualizadoEm = DateTime.Now;
-                    empresaExistente.SincronizadoEm = DateTime.Now;
+                _context.Empresas.Add(novaEmpresa);
+                novos++;
+            }
+            else
+            {
+                // Atualizar empresa existente
+                empresaExistente.RazaoSocial = empresaDto.RazaoSocial;
+                empresaExistente.NomeFantasia = empresaDto.NomeFantasia;
+                empresaExistente.CNPJ = LimparCnpj(empresaDto.Cnpj);
+                empresaExistente.InscricaoEstadual = empresaDto.InscricaoEstadual;
+                empresaExistente.InscricaoMunicipal = empresaDto.InscricaoMunicipal;
+                empresaExistente.Logradouro = empresaDto.Logradouro;
+                empresaExistente.Numero = empresaDto.Numero;
+                empresaExistente.Complemento = empresaDto.Complemento;
+                empresaExistente.Bairro = empresaDto.Bairro;
+                empresaExistente.Cidade = empresaDto.Cidade;
+                empresaExistente.UF = empresaDto.Uf;
+                empresaExistente.CEP = LimparCep(empresaDto.Cep);
+                empresaExistente.Telefone = empresaDto.Telefone;
+                empresaExistente.Email = empresaDto.Email;
+                empresaExistente.RegimeTributarioId = MapearRegimeTributario(empresaDto.RegimeTributario);
+                empresaExistente.AtualizadoEm = DateTime.Now;
+                empresaExistente.SincronizadoEm = DateTime.Now;
 
-                    atualizados++;
-                }
-
-                total++;
+                atualizados++;
             }
 
             await _context.SaveChangesAsync();
@@ -217,14 +227,6 @@ public class EmpresaService
 }
 
 #region DTOs
-
-public class SyncEmpresasResponse
-{
-    public List<EmpresaDto> Empresas { get; set; } = new();
-    public int Total { get; set; }
-    public int Page { get; set; }
-    public int Limit { get; set; }
-}
 
 public class EmpresaDto
 {

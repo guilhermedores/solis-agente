@@ -20,6 +20,12 @@ public class Configuracao
     public string? Token { get; set; }
     
     /// <summary>
+    /// Tenant (cliente) ao qual este agente está vinculado
+    /// Extraído do token JWT durante configuração inicial
+    /// </summary>
+    public string? Tenant { get; set; }
+
+    /// <summary>
     /// ID do tenant (cliente) ao qual este agente está vinculado
     /// Extraído do token JWT durante configuração inicial
     /// </summary>

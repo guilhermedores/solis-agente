@@ -28,13 +28,13 @@ public class TenantHandler : DelegatingHandler
             // Obtém configuração do agente (contém TenantId extraído do token JWT)
             var config = await _configuracaoService.ObterConfiguracaoAsync();
 
-            if (config != null && !string.IsNullOrEmpty(config.TenantId))
+            if (config != null && !string.IsNullOrEmpty(config.Tenant))
             {
                 // Adiciona header X-Tenant para identificar o tenant nas requisições à API
-                request.Headers.TryAddWithoutValidation("X-Tenant", config.TenantId);
+                request.Headers.TryAddWithoutValidation("X-Tenant", config.Tenant);
 
                 _logger.LogDebug(
-                    "[TenantHandler] X-Tenant header adicionado à requisição {Method} {Uri}. Tenant: {TenantId}",
+                    "[TenantHandler] X-Tenant header adicionado à requisição {Method} {Uri}. Tenant: {Tenant}",
                     request.Method,
                     request.RequestUri,
                     config.TenantId
@@ -43,7 +43,7 @@ public class TenantHandler : DelegatingHandler
             else
             {
                 _logger.LogWarning(
-                    "[TenantHandler] Agente não configurado (sem TenantId) para requisição {Method} {Uri}",
+                    "[TenantHandler] Agente não configurado (sem Tenant) para requisição {Method} {Uri}",
                     request.Method,
                     request.RequestUri
                 );

@@ -128,6 +128,9 @@ namespace Solis.AgentePDV.Migrations
                     b.Property<string>("NomeAgente")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Tenant")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("TenantId")
                         .HasColumnType("TEXT");
 
